@@ -40,22 +40,25 @@ def gen_schedule(start, days, caps):
 
 df = gen_schedule(start_date, days_ahead, shift_caps)
 
-# 3. Editable per-day capacity
+# 3. Editable per-day capacity – compact layout
 st.subheader("Adjust Daily Capacity")
 edited = []
+cols = st.columns(7)  # Spread across 7 columns per row
+
 for idx, row in df.iterrows():
-    c1, c2 = st.columns([2,1])
-    with c1:
-        st.write(row['Date'].strftime("%Y-%m-%d"))
-    with c2:
+    with cols[idx % 7]:
+        st.markdown(f"**{row['Date'].strftime('%m-%d')}**")
         val = st.number_input(
-            f"cap_{idx}",
+            label="",
             min_value=0,
-            value=int(row['Capacity']),
+            value=int(row["Capacity"]),
+            key=f"cap_{idx}",
             step=1
         )
-    edited.append(val)
-df['Capacity'] = edited
+        if st.button("Zero", key=f"zero_{idx}"):
+            val = 0
+        edited.append(val)
+df["Capacity"] = edited
 
 # 4. Scenario outputs
 st.subheader("Results")
@@ -69,14 +72,15 @@ else:
     total = df.head(num_days)['Capacity'].sum()
     st.markdown(f"**Total IBCs in {num_days} days:** {total}")
 
-# 5. Horizontal bar chart
-st.subheader(f"{days_ahead}-Day Capacity Chart")
-chart = (
+# 5. Vertical bar chart with tight bars
+bar_chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(size=10)  # Low gap width
     .encode(
-        x="Capacity:Q",
-        y=alt.Y("Date:T", sort="-x", title=None)
+        x=alt.X("Date:T", axis=alt.Axis(title=None, labelAngle=-45)),
+        y=alt.Y("Capacity:Q", axis=alt.Axis(title="Capacity")),
+        tooltip=["Date:T", "Capacity:Q"]
     )
+    .properties(height=300)
 )
-st.altair_chart(chart, use_container_width=True)
+st.altair_chart(bar_chart, use_container_width=True)
