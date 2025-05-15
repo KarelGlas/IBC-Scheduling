@@ -42,20 +42,27 @@ def gen_schedule(start, days, caps):
 
 df = gen_schedule(start_date, days_ahead, shift_caps)
 
+if scenario == "How fast to fill X IBCs?":
+    target = st.number_input("Enter IBC target:", min_value=16, step=1)
+else:
+    num_days = st.number_input("Enter number of days:", min_value=1, max_value=days_ahead, step=1)
+
 # 3. Editable per-day capacity – compact layout
 st.subheader("Adjust Daily Capacity")
 edited = []
 cols = st.columns(5)
 
-# smaller button text & padding
 st.markdown("""
-    <style>
-      div.stButton > button {
-        font-size: 0.8 rem !important;
-        padding: 0.4rem !important;
-      }
-    </style>
-    """, unsafe_allow_html=True)
+  <style>
+    div.stButton > button {
+      font-size: 0.8rem !important;
+      width: 7ch !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+""", unsafe_allow_html=True)
 
 def zero_callback(idx):
     st.session_state[f"cap_{idx}"] = 0
@@ -90,12 +97,10 @@ df["Capacity"] = edited
 # 4. Scenario outputs
 st.subheader("Results")
 if scenario == "How fast to fill X IBCs?":
-    target = st.number_input("Enter IBC target:", min_value=16, step=1)
     cum = df["Capacity"].cumsum()
     days_needed = cum[cum >= target].index.min() + 1 if any(cum >= target) else f"Not achievable in {days_ahead} days"
     st.markdown(f"**Days needed:** {days_needed}")
 else:
-    num_days = st.number_input("Enter number of days:", min_value=1, max_value=days_ahead, step=1)
     total = df.head(num_days)["Capacity"].sum()
     st.markdown(f"**Total IBCs in {num_days} days:** {total}")
 
