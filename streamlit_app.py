@@ -75,7 +75,7 @@ else:
 # 5. Vertical bar chart with tight bars
 bar_chart = (
     alt.Chart(df)
-    .mark_bar(size=10)  # Low gap width
+    .mark_bar(size=30)  # Low gap width
     .encode(
         x=alt.X("Date:T", axis=alt.Axis(title=None, labelAngle=-45)),
         y=alt.Y("Capacity:Q", axis=alt.Axis(title="Capacity")),
