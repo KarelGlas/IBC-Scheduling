@@ -81,7 +81,7 @@ for idx, row in df.iterrows():
     if key not in st.session_state:
         st.session_state[key] = int(row["Capacity"])
     with cols[idx % 5]:
-        st.markdown(f"**{row['Date'].strftime('%m-%d')}**")
+        st.markdown(f"**{row['Date'].strftime('%A, %m-%d')}**")
         st.number_input("", min_value=0, step=1, key=key)
         btn0, btn_plus5, btn_minus5 = st.columns(3)
         with btn0:
