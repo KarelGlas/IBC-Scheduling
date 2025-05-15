@@ -7,19 +7,21 @@ st.title("IBC Filling Scheduler")
 
 # 1. Inputs
 start_date = st.date_input("Schedule Start Date", datetime.today())
-days_ahead = 14
+days_ahead = 15
 end_date = start_date + timedelta(days=days_ahead)
 
 st.subheader("Shift Capacity Configuration")
-shift_defaults = {
-    'Morning (06–14)': 3,
-    'Afternoon (14–22)': 3,
-    'Night (22–06)': 3,
-    'Day (08–16, wkdays)': 5
-}
+col1, col2 = st.columns(2)
+with col1:
+    master = st.number_input("All Shifts (06–22)", value=3, min_value=0, step=1)
+with col2:
+    daycap = st.number_input("Day (08–16, wkdays)", value=5, min_value=0, step=1)
+
 shift_caps = {
-    s: st.number_input(s, value=v, min_value=0, step=1)
-    for s, v in shift_defaults.items()
+    "Morning (06–14)": master,
+    "Afternoon (14–22)": master,
+    "Night (22–06)": master,
+    "Day (08–16, wkdays)": daycap
 }
 
 scenario = st.radio(
@@ -32,9 +34,9 @@ def gen_schedule(start, days, caps):
     rows = []
     for i in range(days):
         d = start + timedelta(days=i)
-        cap = caps['Morning (06–14)'] + caps['Afternoon (14–22)'] + caps['Night (22–06)']
+        cap = caps["Morning (06–14)"] + caps["Afternoon (14–22)"] + caps["Night (22–06)"]
         if d.weekday() < 5:
-            cap += caps['Day (08–16, wkdays)']
+            cap += caps["Day (08–16, wkdays)"]
         rows.append({"Date": d, "Capacity": cap})
     return pd.DataFrame(rows)
 
@@ -43,39 +45,64 @@ df = gen_schedule(start_date, days_ahead, shift_caps)
 # 3. Editable per-day capacity – compact layout
 st.subheader("Adjust Daily Capacity")
 edited = []
-cols = st.columns(7)  # Spread across 7 columns per row
+cols = st.columns(5)
+
+# smaller button text & padding
+st.markdown("""
+    <style>
+      div.stButton > button {
+        font-size: 0.8 rem !important;
+        padding: 0.4rem !important;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+
+def zero_callback(idx):
+    st.session_state[f"cap_{idx}"] = 0
+
+def plus5_callback(idx):
+    st.session_state[f"cap_{idx}"] += 5
+
+def minus5_callback(idx):
+    st.session_state[f"cap_{idx}"] = max(0, st.session_state[f"cap_{idx}"] - 5)
 
 for idx, row in df.iterrows():
-    with cols[idx % 7]:
+    key = f"cap_{idx}"
+    zero_key = f"zero_{idx}"
+    plus5_key = f"plus5_{idx}"
+    minus5_key = f"minus5_{idx}"
+    if key not in st.session_state:
+        st.session_state[key] = int(row["Capacity"])
+    with cols[idx % 5]:
         st.markdown(f"**{row['Date'].strftime('%m-%d')}**")
-        val = st.number_input(
-            label="",
-            min_value=0,
-            value=int(row["Capacity"]),
-            key=f"cap_{idx}",
-            step=1
-        )
-        if st.button("Zero", key=f"zero_{idx}"):
-            val = 0
-        edited.append(val)
+        st.number_input("", min_value=0, step=1, key=key)
+        btn0, btn_plus5, btn_minus5 = st.columns(3)
+        with btn0:
+            st.button("0", key=zero_key, on_click=zero_callback, args=(idx,))
+        with btn_plus5:
+            st.button("+5", key=plus5_key, on_click=plus5_callback, args=(idx,))
+        with btn_minus5:
+            st.button("-5", key=minus5_key, on_click=minus5_callback, args=(idx,))
+    edited.append(st.session_state[key])
+
 df["Capacity"] = edited
 
 # 4. Scenario outputs
 st.subheader("Results")
 if scenario == "How fast to fill X IBCs?":
-    target = st.number_input("Enter IBC target:", min_value=1, step=1)
-    cum = df['Capacity'].cumsum()
-    days_needed = cum[cum >= target].index.min() + 1 if any(cum >= target) else " Not achievable in 14 days"
+    target = st.number_input("Enter IBC target:", min_value=16, step=1)
+    cum = df["Capacity"].cumsum()
+    days_needed = cum[cum >= target].index.min() + 1 if any(cum >= target) else f"Not achievable in {days_ahead} days"
     st.markdown(f"**Days needed:** {days_needed}")
 else:
     num_days = st.number_input("Enter number of days:", min_value=1, max_value=days_ahead, step=1)
-    total = df.head(num_days)['Capacity'].sum()
-    st.markdown(f"**Total IBCs in {num_days} days:** {total}")
+    total = df.head(num_days)["Capacity"].sum()
+    st.markdown(f"**Total IBCs in {num_days} days:** {total}")
 
 # 5. Vertical bar chart with tight bars
 bar_chart = (
     alt.Chart(df)
-    .mark_bar(size=30)  # Low gap width
+    .mark_bar(size=30)
     .encode(
         x=alt.X("Date:T", axis=alt.Axis(title=None, labelAngle=-45)),
         y=alt.Y("Capacity:Q", axis=alt.Axis(title="Capacity")),
