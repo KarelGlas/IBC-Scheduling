@@ -111,26 +111,22 @@ for i, r in df.iterrows():
 
 df["Capacity"] = edited
 
-# 5. Compute finish (scenario 1)
+# 5. Compute finish (scenario 1), using updated df
 finish = None
 if scenario.startswith("How fast"):
     rem = target
-    for i, r in df.iterrows():
-        d = r["Date"]
-        shifts = allowed if i == 0 else shift_order
-        for s in shifts:
-            if s == "Day (08–16, wkdays)" and d.weekday() >= 5: continue
-            if rem <= shift_caps[s]:
-                finish = (d, s)
-                break
-            rem -= shift_caps[s]
-        if finish: break
+    # treat each day as a single “shift” with total capacity
+    for _, r in df.iterrows():
+        if rem <= r["Capacity"]:
+            finish = r["Date"]
+            break
+        rem -= r["Capacity"]
 
 # 6. Results
 st.subheader("Results")
 if scenario.startswith("How fast"):
     if finish:
-        st.markdown(f"**Finish in:** {finish[1]} on {finish[0].strftime('%A, %Y-%m-%d')}")
+        st.markdown(f"**Finish on:** {finish.strftime('%A, %Y-%m-%d')}")
 else:
     total = df.head(num_days)["Capacity"].sum()
     st.markdown(f"**Total IBCs in {num_days} days:** {total}")
